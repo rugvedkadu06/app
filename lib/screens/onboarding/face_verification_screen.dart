@@ -15,36 +15,41 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
   bool _isLoading = false;
-  bool _autoTriggered = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.cameras.isNotEmpty) {
-      final frontCamera = widget.cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front, orElse: () => widget.cameras.first);
-      _controller = CameraController(frontCamera, ResolutionPreset.high, enableAudio: false);
+      // Use the front camera if available, otherwise the first camera
+      final frontCamera = widget.cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => widget.cameras.first,
+      );
+      _controller = CameraController(
+        frontCamera,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
       _initializeControllerFuture = _controller?.initialize();
-      _initializeControllerFuture?.then((_) async {
-        if (!mounted) return;
-        if (!_autoTriggered) {
-          _autoTriggered = true;
-          await Future.delayed(const Duration(milliseconds: 800));
-          if (mounted && !_isLoading) {
-            _captureAndUpload();
-          }
-        }
-      });
     }
   }
 
   @override
-  void dispose() { _controller?.dispose(); super.dispose(); }
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
 
   Future<void> _captureAndUpload() async {
-    if (_controller == null || _controller!.value.isTakingPicture) return;
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _controller!.value.isTakingPicture) {
+      return;
+    }
     try {
       setState(() => _isLoading = true);
       final image = await _controller!.takePicture();
+      // Assuming ApiService is registered with GetX
       bool success = await Get.find<ApiService>().uploadFace(image);
       if (success) {
         Get.offAllNamed('/home');
@@ -53,81 +58,142 @@ class _FaceVerificationScreenState extends State<FaceVerificationScreen> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      debugPrint('Error capturing or uploading image: $e');
+      Get.snackbar('Error', 'An error occurred. Please try again.');
       setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // If no cameras are found, show a message and a skip button.
     if (widget.cameras.isEmpty) {
-      return Scaffold(appBar: AppBar(), body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text("No cameras found."), ElevatedButton(onPressed: ()=>Get.offAllNamed('/home'), child: const Text('Skip to Home'))])));
+      return Scaffold(
+        appBar: AppBar(title: Text('faceVerification'.tr)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text("No cameras found on this device."),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Get.offAllNamed('/home'),
+                child: const Text('Skip to Home'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white, elevation: 0),
+      appBar: AppBar(
+        title: Text(''.tr),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(padding: const EdgeInsets.symmetric(vertical: 20.0), child: Column(children: [
-              Text('faceVerification'.tr, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 22)),
-              const SizedBox(height: 8),
-              const Text('Align your face inside the circle. Good light, remove glasses/mask.', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-            ])),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 20.0, horizontal: 24.0),
+              child: Column(
+                children: [
+                  Text(
+                    'faceVerification'.tr,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Align your face inside the circle. For best results, use a well-lit area and remove glasses or masks.',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: Center(
                 child: Container(
-                  width: 300, height: 400, clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.indigo.shade700, width: 4.0)),
+                  width: 300,
+                  height: 300,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor,
+                      width: 5.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
                   child: FutureBuilder<void>(
                     future: _initializeControllerFuture,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.done) return Stack(children: [
-                        Positioned.fill(child: CameraPreview(_controller!)),
-                        Positioned(
-                          bottom: 16,
-                          left: 16,
-                          right: 16,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                            child: const Text('Tip: Hold steady and keep your face centered', style: TextStyle(color: Colors.white), textAlign: TextAlign.center),
-                          ),
-                        )
-                      ]);
+                      if (snapshot.connectionState == ConnectionState.done) {
+                        if (_controller != null &&
+                            _controller!.value.isInitialized) {
+                          return CameraPreview(_controller!);
+                        } else {
+                          return const Center(
+                              child: Text('Error initializing camera.'));
+                        }
+                      }
                       return const Center(child: CircularProgressIndicator());
                     },
                   ),
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: 80,
-                    child: Center(
-                      child: _isLoading
-                          ? const CircularProgressIndicator()
-                          : InkWell(
-                        onTap: _captureAndUpload,
-                        borderRadius: BorderRadius.circular(40),
-                        child: Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.green.shade600), child: const Icon(Icons.check, color: Colors.white, size: 40)),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 30.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _captureAndUpload,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      child: const Text('Verify My Face',
+                          style: TextStyle(fontSize: 18)),
                     ),
-                  ),
-                  if (!_isLoading) Padding(padding: const EdgeInsets.only(top: 8.0), child: TextButton(onPressed: () => Get.offAllNamed('/home'), child: Text('skipForNow'.tr))),
-                ],
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => Get.offAllNamed('/home'),
+                      child: Text('skipForNow'.tr,
+                          style: TextStyle(
+                              fontSize: 16, color: Colors.grey.shade700)),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 }
-
-

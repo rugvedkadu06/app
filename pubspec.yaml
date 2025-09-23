@@ -5,7 +5,6 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  # CORRECTED: Using the standard format for SDK version constraints
   sdk: '>=3.4.3 <4.0.0'
 
 dependencies:
@@ -21,8 +20,8 @@ dependencies:
   shared_preferences: ^2.2.2
   intl: ^0.19.0
   lottie: ^3.1.0
-  geolocator: ^12.0.0 # ADD THIS FOR LOCATION
-  geocoding: ^3.0.0 # ADD THIS TO CONVERT COORDS TO ADDRESS
+  geolocator: ^12.0.0
+  geocoding: ^3.0.0
   path_provider: ^2.1.2
   saver_gallery: ^4.0.1
   image: ^4.2.0
@@ -31,14 +30,18 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  # Using a standard stable version for lints
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
-  # ADDED: This is required for your Lottie animation to load
   assets:
-    - assets/loading.json # Add the specific Lottie file here
+    - assets/loading.json
+    - assets/
 
-
+# ✅ App Icon Configuration
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"

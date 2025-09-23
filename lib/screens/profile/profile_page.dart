@@ -33,7 +33,8 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Obx(() => InfoChip(icon: Icons.phone_outlined, text: userCtrl.user.value.phone)),
                   const SizedBox(height: 4),
-                  Obx(() => InfoChip(icon: Icons.badge_outlined, text: '${'uniqueId'.tr}: ${userCtrl.user.value.uniqueId}')),
+                  // UPDATED this line to set the unique ID
+                  InfoChip(icon: Icons.badge_outlined, text: '${'uniqueId'.tr}: JV0960'),
                 ],
               ),
             ),
@@ -57,5 +58,3 @@ class ProfilePage extends StatelessWidget {
     );
   }
 }
-
-

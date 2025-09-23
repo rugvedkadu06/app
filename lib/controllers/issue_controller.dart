@@ -33,7 +33,8 @@ class IssueController extends GetxController {
     try {
       final token = await Get.find<ApiService>().getToken();
       if (token == null) {
-        issues.value = _getMockIssues();
+        // Clear issues if not logged in
+        issues.clear();
         isLoading.value = false;
         return;
       }
@@ -48,16 +49,18 @@ class IssueController extends GetxController {
         final List<dynamic> data = jsonDecode(response.body);
         issues.value = data.map((json) => Issue.fromJson(json)).toList();
       } else {
-        // Fallback to mock data
-        issues.value = _getMockIssues();
+        // Clear issues on API error
+        issues.clear();
       }
     } catch (e) {
-      // Fallback to mock data
-      issues.value = _getMockIssues();
+      // Clear issues on network or other errors
+      issues.clear();
     }
     isLoading.value = false;
   }
+
   void filterByStatus(String status) { selectedStatus.value = status; }
+
   void toggleActiveIssues() {
     showActiveIssues.value = !showActiveIssues.value;
     loadIssues();
@@ -155,21 +158,9 @@ class IssueController extends GetxController {
     }
   }
 
-  // --- ADDED THIS METHOD ---
   Future<void> saveIssues() async {
     final prefs = await SharedPreferences.getInstance();
-    // Convert the list of Issue objects to a list of JSON strings
     final issuesJson = issues.map((i) => jsonEncode(i.toJson())).toList();
-    // Save the list to SharedPreferences
     await prefs.setStringList('issues', issuesJson);
-  }
-
-  List<Issue> _getMockIssues() {
-    final userName = Get.find<UserController>().user.value.name;
-    return [
-      Issue(id: 'C-1028', title: 'Water Logging on College Road', description: 'After the recent rains, College Road is completely waterlogged.', location: 'Near City Pride Multiplex', status: IssueStatus.pending, createdAt: DateTime.now(), submittedBy: userName, placeholderImageUrl: 'https://via.placeholder.com/150/03A9F4/FFFFFF?text=Water'),
-      Issue(id: 'C-1024', title: 'Pothole near main square', description: 'A very large and dangerous pothole has formed.', location: 'Main St. & 1st Ave', status: IssueStatus.resolved, createdAt: DateTime.now().subtract(const Duration(days: 3)), submittedBy: userName, placeholderImageUrl: 'https://via.placeholder.com/150/4CAF50/FFFFFF?text=Road'),
-      Issue(id: 'C-1025', title: 'Overflowing garbage bin', description: 'The public garbage bin has not been emptied for a week.', location: 'Oak Street Bus Stop', status: IssueStatus.inProgress, createdAt: DateTime.now().subtract(const Duration(days: 1)), submittedBy: userName, placeholderImageUrl: 'https://via.placeholder.com/150/FF9800/FFFFFF?text=Waste'),
-    ];
   }
 }

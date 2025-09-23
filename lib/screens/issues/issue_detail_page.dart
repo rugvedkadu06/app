@@ -164,7 +164,30 @@ class IssueDetailPage extends StatelessWidget {
     final issueCtrl = Get.find<IssueController>();
     final currentStatusIndex = IssueStatus.values.indexOf(issue.status);
     return Scaffold(
-      appBar: AppBar(title: Text('issueDetails'.tr)),
+      appBar: AppBar(
+        title: Text('issueDetails'.tr),
+        actions: [
+          // UPDATED "Flag as Fake" button
+          IconButton(
+            icon: const Icon(Icons.flag, color: Colors.red),
+            tooltip: 'Flag as Fake',
+            onPressed: () {
+              // Using Get.snackbar for a better popup experience
+              Get.snackbar(
+                'Issue Flagged',
+                'This issue has been marked as fake.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.orange.withOpacity(0.9),
+                colorText: Colors.white,
+                margin: const EdgeInsets.all(12),
+                borderRadius: 8,
+                icon: const Icon(Icons.info, color: Colors.white),
+              );
+              // You can add logic here to update the issue status in your backend/controller
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -406,5 +429,3 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 }
-
-
